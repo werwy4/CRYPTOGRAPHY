@@ -1,0 +1,299 @@
+# ==============================
+# ALL CIPHER PROGRAMS LAB
+# ==============================
+
+import random
+import string
+import math
+import time
+import numpy as np
+from collections import Counter
+
+# ==============================
+# 1. Caesar Cipher
+# ==============================
+def caesar_encrypt(plaintext, key):
+    plaintext = plaintext.upper()
+    ciphertext = ""
+    for ch in plaintext:
+        if ch.isalpha():
+            c = (ord(ch) - 65 + key) % 26
+            ciphertext += chr(c + 65)
+        else:
+            ciphertext += ch
+    return ciphertext
+
+def caesar_decrypt(ciphertext, key):
+    ciphertext = ciphertext.upper()
+    plaintext = ""
+    for ch in ciphertext:
+        if ch.isalpha():
+            p = (ord(ch) - 65 - key) % 26
+            plaintext += chr(p + 65)
+        else:
+            plaintext += ch
+    return plaintext
+
+def caesar_bruteforce(ciphertext):
+    print("----- Caesar Brute Force -----")
+    ciphertext = ciphertext.upper()
+    for key in range(1, 26):
+        plaintext = ""
+        for ch in ciphertext:
+            if ch.isalpha():
+                p = (ord(ch) - 65 - key) % 26
+                plaintext += chr(p + 65)
+            else:
+                plaintext += ch
+        print(f"Key {key}: {plaintext}")
+
+# ==============================
+# 2. Monoalphabetic Cipher
+# ==============================
+def generate_mono_key():
+    letters = list(string.ascii_uppercase)
+    shuffled = letters.copy()
+    random.shuffle(shuffled)
+    key_map = dict(zip(letters, shuffled))
+    print("Monoalphabetic Key Mapping:")
+    for k,v in key_map.items():
+        print(f"{k} -> {v}", end="  ")
+    print("\n")
+    return key_map
+
+def mono_encrypt(plaintext, key_map):
+    plaintext = plaintext.upper()
+    ciphertext = ""
+    for ch in plaintext:
+        if ch.isalpha():
+            ciphertext += key_map[ch]
+        else:
+            ciphertext += ch
+    return ciphertext
+
+def frequency_analysis(ciphertext):
+    ciphertext = ciphertext.upper()
+    freq = Counter([c for c in ciphertext if c.isalpha()])
+    top3 = freq.most_common(3)
+    print("Top 3 most frequent letters in ciphertext:")
+    for letter, count in top3:
+        print(f"{letter}: {count}")
+
+# ==============================
+# 3. Vigenère Cipher
+# ==============================
+def vigenere_encrypt(plaintext, keyword):
+    plaintext = plaintext.upper()
+    keyword = keyword.upper()
+    ciphertext = ""
+    key_extended = (keyword * ((len(plaintext) // len(keyword)) + 1))[:len(plaintext)]
+    for p,k in zip(plaintext, key_extended):
+        if p.isalpha():
+            c = (ord(p)-65 + ord(k)-65) % 26
+            ciphertext += chr(c+65)
+        else:
+            ciphertext += p
+    return ciphertext
+
+def vigenere_decrypt(ciphertext, keyword):
+    ciphertext = ciphertext.upper()
+    keyword = keyword.upper()
+    plaintext = ""
+    key_extended = (keyword * ((len(ciphertext)//len(keyword))+1))[:len(ciphertext)]
+    for c,k in zip(ciphertext, key_extended):
+        if c.isalpha():
+            p = (ord(c)-65 - (ord(k)-65)) % 26
+            plaintext += chr(p+65)
+        else:
+            plaintext += c
+    return plaintext
+
+def kasiski_analysis(ciphertext):
+    print("----- Basic Kasiski Method -----")
+    n = 3  # looking for repeated 3-letter sequences
+    seq_positions = {}
+    ciphertext = ciphertext.upper()
+    for i in range(len(ciphertext)-n):
+        seq = ciphertext[i:i+n]
+        if seq.isalpha():
+            if seq in seq_positions:
+                seq_positions[seq].append(i)
+            else:
+                seq_positions[seq] = [i]
+    distances = []
+    for positions in seq_positions.values():
+        if len(positions) >1:
+            for i in range(len(positions)-1):
+                distances.append(positions[i+1]-positions[i])
+    if distances:
+        probable_key_length = math.gcd(*distances)
+        print(f"Estimated probable key length: {probable_key_length}")
+    else:
+        print("No repeating sequences found to estimate key length.")
+
+# ==============================
+# 4. Hill Cipher (2x2)
+# ==============================
+def hill_encrypt(plaintext, key_matrix):
+    plaintext = plaintext.upper()
+    if len(plaintext)%2 !=0:
+        plaintext += "X"
+    ciphertext = ""
+    for i in range(0,len(plaintext),2):
+        pair = [ord(plaintext[i])-65, ord(plaintext[i+1])-65]
+        res = np.dot(key_matrix,pair) % 26
+        ciphertext += chr(int(res[0])+65) + chr(int(res[1])+65)
+    return ciphertext
+
+def mod_inv(a, m):
+    for i in range(1,m):
+        if (a*i)%m ==1:
+            return i
+    return None
+
+def hill_decrypt(ciphertext, key_matrix):
+    det = int(np.round(np.linalg.det(key_matrix))) %26
+    det_inv = mod_inv(det,26)
+    if det_inv is None:
+        print("Key matrix is not invertible modulo 26")
+        return
+    a,b,c,d = key_matrix.flatten()
+    adj = np.array([[d,-b],[-c,a]])
+    inv_matrix = (det_inv*adj)%26
+    plaintext = ""
+    for i in range(0,len(ciphertext),2):
+        pair = [ord(ciphertext[i])-65, ord(ciphertext[i+1])-65]
+        res = np.dot(inv_matrix,pair) %26
+        plaintext += chr(int(res[0])+65) + chr(int(res[1])+65)
+    return plaintext
+
+# ==============================
+# 5. Comparative Analysis
+# ==============================
+def comparative_analysis(plaintext, caesar_key, mono_key_map, vigenere_keyword, hill_key_matrix):
+    print("\n===== Comparative Cipher Analysis =====")
+    start = time.time()
+    c_caesar = caesar_encrypt(plaintext, caesar_key)
+    t_caesar = time.time()-start
+
+    start = time.time()
+    c_mono = mono_encrypt(plaintext, mono_key_map)
+    t_mono = time.time()-start
+
+    start = time.time()
+    c_vigenere = vigenere_encrypt(plaintext,vigenere_keyword)
+    t_vigenere = time.time()-start
+
+    start = time.time()
+    c_hill = hill_encrypt(plaintext,hill_key_matrix)
+    t_hill = time.time()-start
+
+    table = [
+        ["Caesar", c_caesar, len(set(c_caesar)), t_caesar],
+        ["Monoalphabetic", c_mono, len(set(c_mono)), t_mono],
+        ["Vigenere", c_vigenere, len(set(c_vigenere)), t_vigenere],
+        ["Hill", c_hill, len(set(c_hill)), t_hill]
+    ]
+    print(f"{'Cipher':<15}{'Ciphertext':<30}{'Unique Letters':<15}{'Time(s)':<10}")
+    for row in table:
+        print(f"{row[0]:<15}{row[1]:<30}{row[2]:<15}{row[3]:<10.6f}")
+
+# ==============================
+# MAIN PROGRAM
+# ==============================
+if __name__ == "__main__":
+    print("===== LAB PROGRAM: CIPHERS =====\n")
+
+    plaintext = input("Enter plaintext: ")
+
+    # ----- Caesar Cipher -----
+    caesar_key = int(input("Enter Caesar key (number): "))
+    c_caesar = caesar_encrypt(plaintext, caesar_key)
+    print(f"Caesar Ciphertext: {c_caesar}")
+    print(f"Decrypted: {caesar_decrypt(c_caesar, caesar_key)}\n")
+    caesar_bruteforce(c_caesar)
+
+    # ----- Monoalphabetic Cipher -----
+    mono_key_map = generate_mono_key()
+    c_mono = mono_encrypt(plaintext, mono_key_map)
+    print(f"Monoalphabetic Ciphertext: {c_mono}")
+    frequency_analysis(c_mono)
+
+    # ----- Vigenere Cipher -----
+    vigenere_keyword = input("Enter Vigenere keyword: ")
+    c_vigenere = vigenere_encrypt(plaintext,vigenere_keyword)
+    print(f"Vigenere Ciphertext: {c_vigenere}")
+    print(f"Decrypted: {vigenere_decrypt(c_vigenere, vigenere_keyword)}")
+    kasiski_analysis(c_vigenere)
+
+    # ----- Hill Cipher -----
+    print("Enter 2x2 Hill Key Matrix values (a b c d):")
+    a,b,c,d = map(int,input().split())
+    hill_key_matrix = np.array([[a,b],[c,d]])
+    det = int(np.round(np.linalg.det(hill_key_matrix))) %26
+    if math.gcd(det,26)!=1:
+        print("Invalid Hill key matrix, determinant not relatively prime to 26")
+    else:
+        c_hill = hill_encrypt(plaintext,hill_key_matrix)
+        print(f"Hill Ciphertext: {c_hill}")
+        print(f"Decrypted: {hill_decrypt(c_hill,hill_key_matrix)}")
+
+    # ----- Comparative Analysis -----
+    comparative_analysis(plaintext, caesar_key, mono_key_map, vigenere_keyword, hill_key_matrix)
+
+OUTPUT:
+Enter plaintext: HELLO
+Enter Caesar key (number): 3
+Caesar Ciphertext: KHOOR
+Decrypted: HELLO
+
+----- Caesar Brute Force -----
+Key 1: JGNNQ
+Key 2: IFMMP
+Key 3: HELLO
+Key 4: GDKKN
+Key 5: FCJJM
+Key 6: EBIIL
+Key 7: DAHHK
+Key 8: CZGGJ
+Key 9: BYFFI
+Key 10: AXEEH
+Key 11: ZWDDG
+Key 12: YVCCF
+Key 13: XUBBE
+Key 14: WTAAD
+Key 15: VSZZC
+Key 16: URYYB
+Key 17: TQXXA
+Key 18: SPWWZ
+Key 19: ROVVY
+Key 20: QNUUX
+Key 21: PMTTW
+Key 22: OLSSV
+Key 23: NKRRU
+Key 24: MJQQT
+Key 25: LIPPS
+Monoalphabetic Key Mapping:
+A -> X  B -> M  C -> Y  D -> Q  E -> R  F -> E  G -> Z  H -> P  I -> D  J -> W  K -> O  L -> L  M -> C  N -> I  O -> G  P -> V  Q -> U  R -> T  S -> F  T -> S  U -> H  V -> J  W -> N  X -> A  Y -> B  Z -> K  
+
+Monoalphabetic Ciphertext: PRLLG
+Top 3 most frequent letters in ciphertext:
+L: 2
+P: 1
+R: 1
+Enter Vigenere keyword: HELLO
+Vigenere Ciphertext: OIWWC
+Decrypted: HELLO
+----- Basic Kasiski Method -----
+No repeating sequences found to estimate key length.
+Enter 2x2 Hill Key Matrix values (a b c d):
+2 3 5 6
+Hill Ciphertext: AHDRTA
+Decrypted: HELLOX
+
+===== Comparative Cipher Analysis =====
+Cipher         Ciphertext                    Unique Letters Time(s)   
+Caesar         KHOOR                         4              0.000009  
+Monoalphabetic PRLLG                         4              0.000004  
+Vigenere       OIWWC                         4              0.000012  
+Hill           AHDRTA                        5              0.000078  
